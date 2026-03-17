@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 
 class ProfileInfoCard extends StatelessWidget {
-  const ProfileInfoCard({super.key, required this.name, required this.email});
+  const ProfileInfoCard({
+    required this.name, 
+    required this.email,
+    super.key, 
+  });
 
   final String name;
   final String email;
