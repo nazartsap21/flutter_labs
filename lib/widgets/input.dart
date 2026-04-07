@@ -4,25 +4,30 @@ class WeatherInput extends StatelessWidget {
   const WeatherInput({
     required this.label,
     super.key,
+    this.controller,
     this.hintText,
     this.obscureText = false,
     this.prefixIcon,
     this.suffixIcon,
     this.onSubmitted,
     this.keyboardType,
+    this.errorText,
   });
 
   final String label;
+  final TextEditingController? controller;
   final String? hintText;
   final bool obscureText;
   final IconData? prefixIcon;
   final Widget? suffixIcon;
   final ValueChanged<String>? onSubmitted;
   final TextInputType? keyboardType;
+  final String? errorText;
 
   @override
   Widget build(BuildContext context) {
     return TextField(
+      controller: controller,
       onSubmitted: onSubmitted,
       obscureText: obscureText,
       style: const TextStyle(fontSize: 16),
@@ -30,9 +35,9 @@ class WeatherInput extends StatelessWidget {
       decoration: InputDecoration(
         labelText: label,
         hintText: hintText,
-        prefixIcon: prefixIcon != null
-            ? Icon(prefixIcon, size: 20)
-            : null,
+        errorText: errorText,
+        prefixIcon:
+            prefixIcon != null ? Icon(prefixIcon, size: 20) : null,
         suffixIcon: suffixIcon != null
             ? IconTheme(
                 data: const IconThemeData(size: 20),
