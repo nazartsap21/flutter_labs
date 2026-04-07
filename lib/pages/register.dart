@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_lab/data/models/meteostation.dart';
+import 'package:flutter_lab/data/models/user.dart';
+import 'package:flutter_lab/data/repositories/local_auth_repository.dart';
+import 'package:flutter_lab/data/repositories/local_meteostation_repository.dart';
 import 'package:flutter_lab/pages/home.dart';
 import 'package:flutter_lab/pages/login.dart';
-import 'package:flutter_lab/widgets/input.dart';
+import 'package:flutter_lab/widgets/register_form.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -11,83 +15,55 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
+  final _authRepository = LocalAuthRepository();
+  final _stationRepository = LocalMeteostationRepository();
+  bool _isLoading = false;
+
+  Future<void> _register(RegisterFormData data) async {
+    setState(() => _isLoading = true);
+    try {
+      final user = User(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        name: data.name,
+        email: data.email,
+        password: data.password,
+      );
+      await _authRepository.register(user);
+
+      if (data.stationName != null && data.stationLocation != null) {
+        await _stationRepository.addStation(
+          Meteostation(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            name: data.stationName!,
+            location: data.stationLocation!,
+            userId: user.id,
+          ),
+        );
+      }
+
+      if (!mounted) return;
+      await Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(builder: (_) => const HomePage()),
+      );
+    } on Exception catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            children: [
-              const SizedBox(height: 50),
-              const Text('Weather Station'),
-              const SizedBox(height: 20),
-              const Text('Register'),
-              const SizedBox(height: 20),
-              const WeatherInput(
-                label: 'Name',
-                hintText: 'Enter your name',
-                prefixIcon: Icons.person_outline_rounded,
-                keyboardType: TextInputType.name, 
-              ),
-              const SizedBox(height: 20),
-              const WeatherInput(
-                label: 'Email',
-                hintText: 'Enter your email',
-                prefixIcon: Icons.mail_outline_rounded,
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 20),
-              const WeatherInput(
-                label: 'Password',
-                hintText: 'Enter your password',
-                prefixIcon: Icons.lock_outline_rounded,
-                suffixIcon: Icon(Icons.visibility_off_outlined),
-                obscureText: true,
-              ),
-              const SizedBox(height: 20),
-              const WeatherInput(
-                label: 'Confirm Password',
-                hintText: 'Confirm your password',
-                prefixIcon: Icons.lock_outline_rounded,
-                suffixIcon: Icon(Icons.visibility_off_outlined),
-                obscureText: true,
-              ),
-              const SizedBox(height: 20),
-              const WeatherInput(
-                label: 'Meteostation',
-                hintText: 'Enter your meteostation',
-                prefixIcon: Icons.location_on_outlined,
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (context) => const HomePage(),
-                    ),
-                  );
-                },
-                child: const Text('Register'),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('Already have an account?'),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (context) => const LoginPage(),
-                        ),
-                      );
-                    },
-                    child: const Text('Login'),
-                  ),
-                ],
-              ),            
-            ],
+        child: RegisterForm(
+          isLoading: _isLoading,
+          onSubmit: _register,
+          onLoginTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const LoginPage()),
           ),
         ),
       ),

@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 class ProfileInfoCard extends StatelessWidget {
   const ProfileInfoCard({
-    required this.name, 
+    required this.name,
     required this.email,
-    super.key, 
+    super.key,
   });
 
   final String name;
@@ -15,18 +15,35 @@ class ProfileInfoCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.all(16),
+        child: Row(
           children: [
-            Text(
-              name,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            CircleAvatar(
+              radius: 28,
+              child: Text(
+                name.isNotEmpty ? name[0].toUpperCase() : '?',
+                style: const TextStyle(fontSize: 22),
+              ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              email,
-              style: const TextStyle(fontSize: 14, color: Colors.grey),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    email,
+                    style: const TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
