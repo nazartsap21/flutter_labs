@@ -49,7 +49,10 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
     final passwordError =
         newPassword.isNotEmpty ? Validator.validatePassword(newPassword) : null;
     final confirmError = newPassword.isNotEmpty
-        ? Validator.validateConfirmPassword(newPassword, _confirmController.text)
+        ? Validator.validateConfirmPassword(
+            newPassword,
+            _confirmController.text,
+          )
         : null;
 
     if (nameError != null || passwordError != null || confirmError != null) {
