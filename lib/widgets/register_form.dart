@@ -8,15 +8,11 @@ class RegisterFormData {
     required this.name,
     required this.email,
     required this.password,
-    this.stationName,
-    this.stationLocation,
   });
 
   final String name;
   final String email;
   final String password;
-  final String? stationName;
-  final String? stationLocation;
 }
 
 class RegisterForm extends StatefulWidget {
@@ -40,15 +36,11 @@ class _RegisterFormState extends State<RegisterForm> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final _stationNameController = TextEditingController();
-  final _stationLocationController = TextEditingController();
 
   String? _nameError;
   String? _emailError;
   String? _passwordError;
   String? _confirmPasswordError;
-  String? _stationNameError;
-  String? _stationLocationError;
 
   @override
   void dispose() {
@@ -56,58 +48,38 @@ class _RegisterFormState extends State<RegisterForm> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-    _stationNameController.dispose();
-    _stationLocationController.dispose();
     super.dispose();
   }
 
   bool _validate() {
-    final stationFilled = _stationNameController.text.trim().isNotEmpty ||
-        _stationLocationController.text.trim().isNotEmpty;
-
     final nameError = Validator.validateName(_nameController.text.trim());
     final emailError = Validator.validateEmail(_emailController.text.trim());
-    final passwordError =
-        Validator.validatePassword(_passwordController.text);
+    final passwordError = Validator.validatePassword(_passwordController.text);
     final confirmError = Validator.validateConfirmPassword(
       _passwordController.text,
       _confirmPasswordController.text,
     );
-    final stationNameError = stationFilled
-        ? Validator.validateStationName(_stationNameController.text.trim())
-        : null;
-    final stationLocationError = stationFilled
-        ? Validator.validateLocation(_stationLocationController.text.trim())
-        : null;
 
     setState(() {
       _nameError = nameError;
       _emailError = emailError;
       _passwordError = passwordError;
       _confirmPasswordError = confirmError;
-      _stationNameError = stationNameError;
-      _stationLocationError = stationLocationError;
     });
 
     return nameError == null &&
         emailError == null &&
         passwordError == null &&
-        confirmError == null &&
-        stationNameError == null &&
-        stationLocationError == null;
+        confirmError == null;
   }
 
   Future<void> _submit() async {
     if (!_validate()) return;
-    final stationName = _stationNameController.text.trim();
-    final stationLocation = _stationLocationController.text.trim();
     await widget.onSubmit(
       RegisterFormData(
         name: _nameController.text.trim(),
         email: _emailController.text.trim(),
         password: _passwordController.text,
-        stationName: stationName.isNotEmpty ? stationName : null,
-        stationLocation: stationLocation.isNotEmpty ? stationLocation : null,
       ),
     );
   }
@@ -162,27 +134,6 @@ class _RegisterFormState extends State<RegisterForm> {
             hintText: 'Repeat your password',
             controller: _confirmPasswordController,
             errorText: _confirmPasswordError,
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'First Meteostation (optional)',
-            style: TextStyle(fontSize: 13, color: Colors.grey),
-          ),
-          const SizedBox(height: 10),
-          WeatherInput(
-            label: 'Station Name',
-            hintText: 'e.g. Roof Station',
-            prefixIcon: Icons.sensors_outlined,
-            controller: _stationNameController,
-            errorText: _stationNameError,
-          ),
-          const SizedBox(height: 16),
-          WeatherInput(
-            label: 'Location',
-            hintText: 'e.g. Lviv, Ukraine',
-            prefixIcon: Icons.location_on_outlined,
-            controller: _stationLocationController,
-            errorText: _stationLocationError,
           ),
           const SizedBox(height: 28),
           ElevatedButton(

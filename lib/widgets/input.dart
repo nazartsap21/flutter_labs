@@ -12,6 +12,7 @@ class WeatherInput extends StatelessWidget {
     this.onSubmitted,
     this.keyboardType,
     this.errorText,
+    this.readOnly = false,
   });
 
   final String label;
@@ -23,6 +24,7 @@ class WeatherInput extends StatelessWidget {
   final ValueChanged<String>? onSubmitted;
   final TextInputType? keyboardType;
   final String? errorText;
+  final bool readOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -30,6 +32,7 @@ class WeatherInput extends StatelessWidget {
       controller: controller,
       onSubmitted: onSubmitted,
       obscureText: obscureText,
+      readOnly: readOnly,
       style: const TextStyle(fontSize: 16),
       keyboardType: keyboardType,
       decoration: InputDecoration(
