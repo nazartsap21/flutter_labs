@@ -45,6 +45,13 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _logout() async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Log Out',
+      content: 'Are you sure you want to log out?',
+      confirmLabel: 'Log Out',
+    );
+    if (!confirmed) return;
     await _authRepository.logout();
     if (!mounted) return;
     await Navigator.of(context).pushAndRemoveUntil(

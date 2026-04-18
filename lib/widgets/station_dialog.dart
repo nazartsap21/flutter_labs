@@ -24,9 +24,11 @@ class _StationDialogState extends State<StationDialog> {
   final _stationRepository = LocalMeteostationRepository();
   late final TextEditingController _nameController;
   late final TextEditingController _locationController;
+  late final TextEditingController _idController;
 
   String? _nameError;
   String? _locationError;
+  String? _idError;
 
   @override
   void initState() {
@@ -34,12 +36,14 @@ class _StationDialogState extends State<StationDialog> {
     _nameController = TextEditingController(text: widget.existing?.name ?? '');
     _locationController =
         TextEditingController(text: widget.existing?.location ?? '');
+    _idController = TextEditingController(text: widget.existing?.id ?? '');
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _locationController.dispose();
+    _idController.dispose();
     super.dispose();
   }
 
@@ -48,11 +52,14 @@ class _StationDialogState extends State<StationDialog> {
         Validator.validateStationName(_nameController.text.trim());
     final locationError =
         Validator.validateLocation(_locationController.text.trim());
+    final idValue = _idController.text.trim();
+    final idError = idValue.isEmpty ? 'Device ID is required' : null;
 
-    if (nameError != null || locationError != null) {
+    if (nameError != null || locationError != null || idError != null) {
       setState(() {
         _nameError = nameError;
         _locationError = locationError;
+        _idError = idError;
       });
       return;
     }
@@ -60,7 +67,7 @@ class _StationDialogState extends State<StationDialog> {
     if (widget.existing == null) {
       await _stationRepository.addStation(
         Meteostation(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          id: idValue,
           name: _nameController.text.trim(),
           location: _locationController.text.trim(),
           userId: widget.userId,
@@ -88,6 +95,15 @@ class _StationDialogState extends State<StationDialog> {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          WeatherInput(
+            label: 'Device ID',
+            hintText: 'e.g. a1b2-c3d4-...',
+            prefixIcon: Icons.fingerprint_outlined,
+            controller: _idController,
+            errorText: _idError,
+            readOnly: isEdit,
+          ),
+          const SizedBox(height: 16),
           WeatherInput(
             label: 'Station Name',
             hintText: 'e.g. Roof Station',

@@ -4,10 +4,13 @@ import 'package:flutter_lab/data/models/user.dart';
 import 'package:flutter_lab/data/repositories/local_auth_repository.dart';
 import 'package:flutter_lab/data/repositories/local_meteostation_repository.dart';
 import 'package:flutter_lab/pages/profile.dart';
+import 'package:flutter_lab/providers/connectivity_provider.dart';
+import 'package:flutter_lab/providers/mqtt_provider.dart';
 import 'package:flutter_lab/widgets/confirm_dialog.dart';
 import 'package:flutter_lab/widgets/meteostation.dart';
 import 'package:flutter_lab/widgets/metric.dart';
 import 'package:flutter_lab/widgets/station_dialog.dart';
+import 'package:provider/provider.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -31,19 +34,23 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _loadData() async {
-    final user = await _authRepository.getCurrentUser();
-    if (!mounted) return;
-    if (user == null) {
-      setState(() => _isLoading = false);
-      return;
+    try {
+      final user = await _authRepository.getCurrentUser();
+      if (!mounted) return;
+      if (user == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+      final stations = await _stationRepository.getStations(user.id);
+      if (!mounted) return;
+      setState(() {
+        _user = user;
+        _stations = stations;
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
     }
-    final stations = await _stationRepository.getStations(user.id);
-    if (!mounted) return;
-    setState(() {
-      _user = user;
-      _stations = stations;
-      _isLoading = false;
-    });
   }
 
   void _openStationDialog({Meteostation? existing}) {
@@ -76,6 +83,18 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: const Text('Your Meteostations'),
         actions: [
+          Consumer<MqttProvider>(
+            builder: (context, mqtt, _) => Tooltip(
+              message: mqtt.connected ? 'MQTT Connected' : 'MQTT Disconnected',
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Icon(
+                  mqtt.connected ? Icons.sensors : Icons.sensors_off,
+                  color: mqtt.connected ? Colors.green : Colors.grey,
+                ),
+              ),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.person_outline),
             tooltip: 'Profile',
@@ -88,46 +107,96 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _stations.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.sensors_off_outlined,
-                          size: 56, color: Colors.grey),
-                      const SizedBox(height: 12),
-                      const Text('No stations yet',
-                          style: TextStyle(color: Colors.grey)),
-                      const SizedBox(height: 12),
-                      ElevatedButton.icon(
-                        onPressed: _user != null ? _openStationDialog : null,
-                        icon: const Icon(Icons.add),
-                        label: const Text('Add Station'),
-                      ),
-                    ],
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.symmetric(
-                      vertical: 8, horizontal: 12),
-                  itemCount: _stations.length,
-                  itemBuilder: (context, index) {
-                    final station = _stations[index];
-                    return MeteostationCard(
-                      name: station.name,
-                      location: station.location,
-                      metrics: const [
-                        MetricTile(label: 'Temp', value: '—'),
-                        MetricTile(label: 'Hum', value: '—'),
-                        MetricTile(label: 'Wind', value: '—'),
-                      ],
-                      onEdit: () => _openStationDialog(existing: station),
-                      onDelete: () => _deleteStation(station),
-                    );
-                  },
+      body: Column(
+        children: [
+          Consumer<ConnectivityProvider>(
+            builder: (context, connectivity, _) {
+              if (connectivity.isConnected) return const SizedBox.shrink();
+              return Container(
+                color: Colors.orange.shade100,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
                 ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.wifi_off, color: Colors.orange, size: 18),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'No internet connection',
+                        style: TextStyle(color: Colors.orange),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _stations.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.sensors_off_outlined,
+                              size: 56,
+                              color: Colors.grey,
+                            ),
+                            const SizedBox(height: 12),
+                            const Text(
+                              'No stations yet',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                            const SizedBox(height: 12),
+                            ElevatedButton.icon(
+                              onPressed:
+                                  _user != null ? _openStationDialog : null,
+                              icon: const Icon(Icons.add),
+                              label: const Text('Add Station'),
+                            ),
+                          ],
+                        ),
+                      )
+                    : Consumer<MqttProvider>(
+                        builder: (context, mqtt, _) => ListView.builder(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 8,
+                            horizontal: 12,
+                          ),
+                          itemCount: _stations.length,
+                          itemBuilder: (context, index) {
+                            final station = _stations[index];
+                            return MeteostationCard(
+                              name: station.name,
+                              location: station.location,
+                              metrics: [
+                                MetricTile(
+                                  label: 'Temp',
+                                  value: mqtt.temperature(station.id),
+                                ),
+                                MetricTile(
+                                  label: 'Hum',
+                                  value: mqtt.humidity(station.id),
+                                ),
+                                MetricTile(
+                                  label: 'Wind',
+                                  value: mqtt.wind(station.id),
+                                ),
+                              ],
+                              onEdit: () =>
+                                  _openStationDialog(existing: station),
+                              onDelete: () => _deleteStation(station),
+                            );
+                          },
+                        ),
+                      ),
+          ),
+        ],
+      ),
       floatingActionButton: _user != null && _stations.isNotEmpty
           ? FloatingActionButton(
               onPressed: _openStationDialog,

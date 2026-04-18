@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_lab/data/models/meteostation.dart';
 import 'package:flutter_lab/data/models/user.dart';
 import 'package:flutter_lab/data/repositories/local_auth_repository.dart';
-import 'package:flutter_lab/data/repositories/local_meteostation_repository.dart';
 import 'package:flutter_lab/pages/home.dart';
 import 'package:flutter_lab/pages/login.dart';
 import 'package:flutter_lab/widgets/register_form.dart';
@@ -16,7 +14,6 @@ class RegisterPage extends StatefulWidget {
 
 class _RegisterPageState extends State<RegisterPage> {
   final _authRepository = LocalAuthRepository();
-  final _stationRepository = LocalMeteostationRepository();
   bool _isLoading = false;
 
   Future<void> _register(RegisterFormData data) async {
@@ -29,17 +26,6 @@ class _RegisterPageState extends State<RegisterPage> {
         password: data.password,
       );
       await _authRepository.register(user);
-
-      if (data.stationName != null && data.stationLocation != null) {
-        await _stationRepository.addStation(
-          Meteostation(
-            id: DateTime.now().millisecondsSinceEpoch.toString(),
-            name: data.stationName!,
-            location: data.stationLocation!,
-            userId: user.id,
-          ),
-        );
-      }
 
       if (!mounted) return;
       await Navigator.of(context).pushReplacement(
