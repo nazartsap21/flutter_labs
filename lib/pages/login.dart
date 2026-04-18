@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_lab/data/repositories/local_auth_repository.dart';
 import 'package:flutter_lab/pages/home.dart';
 import 'package:flutter_lab/pages/register.dart';
-import 'package:flutter_lab/widgets/input.dart';
+import 'package:flutter_lab/widgets/login_form.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -11,70 +12,39 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  final _authRepository = LocalAuthRepository();
+  bool _isLoading = false;
+
+  Future<void> _login(String email, String password) async {
+    setState(() => _isLoading = true);
+    try {
+      await _authRepository.login(email, password);
+      if (!mounted) return;
+      await Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(builder: (_) => const HomePage()),
+      );
+    } on Exception catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            children: [
-              const SizedBox(height: 50),
-              const Text('Weather Station'),
-              const SizedBox(height: 20),
-              const Text('Login'),
-              const SizedBox(height: 20),
-              const WeatherInput(
-                label: 'Email',
-                hintText: 'Enter your email',
-                prefixIcon: Icons.mail_outline_rounded,
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 20),
-              const WeatherInput(
-                label: 'Password',
-                hintText: 'Enter your password',
-                prefixIcon: Icons.lock_outline_rounded,
-                suffixIcon: Icon(Icons.visibility_off_outlined),
-                obscureText: true,
-              ),
-              const SizedBox(height: 20),
-              TextButton(
-                onPressed: () {},
-                child: const Text('Forgot password?'),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (context) => const HomePage(),
-                    ),
-                  );
-                },
-                child: const Text('Login'),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('Don\'t have an account?'),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (context) => const RegisterPage(),
-                        ),
-                      );
-                    },
-                    child: const Text('Register'),
-                  ),
-                ],
-              ),
-            ],
+        child: LoginForm(
+          isLoading: _isLoading,
+          onSubmit: _login,
+          onRegisterTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const RegisterPage()),
           ),
         ),
-      )
+      ),
     );
   }
 }
