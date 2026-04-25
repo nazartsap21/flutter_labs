@@ -1,26 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_lab/cubits/auth_cubit.dart';
 import 'package:flutter_lab/data/models/user.dart';
-import 'package:flutter_lab/data/repositories/api_auth_repository.dart';
 import 'package:flutter_lab/data/services/validator.dart';
 import 'package:flutter_lab/widgets/input.dart';
 import 'package:flutter_lab/widgets/password_field.dart';
 
 class EditProfileDialog extends StatefulWidget {
-  const EditProfileDialog({
-    required this.user,
-    required this.onSaved,
-    super.key,
-  });
+  const EditProfileDialog({required this.user, super.key});
 
   final User user;
-  final VoidCallback onSaved;
 
   @override
   State<EditProfileDialog> createState() => _EditProfileDialogState();
 }
 
 class _EditProfileDialogState extends State<EditProfileDialog> {
-  final _authRepository = ApiAuthRepository();
   late final TextEditingController _nameController;
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
@@ -46,8 +41,9 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
   Future<void> _save() async {
     final nameError = Validator.validateName(_nameController.text.trim());
     final newPassword = _passwordController.text;
-    final passwordError =
-        newPassword.isNotEmpty ? Validator.validatePassword(newPassword) : null;
+    final passwordError = newPassword.isNotEmpty
+        ? Validator.validatePassword(newPassword)
+        : null;
     final confirmError = newPassword.isNotEmpty
         ? Validator.validateConfirmPassword(
             newPassword,
@@ -68,15 +64,12 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
       name: _nameController.text.trim(),
       password: newPassword,
     );
-    await _authRepository.updateProfile(updated);
-
+    await context.read<AuthCubit>().updateProfile(updated);
     if (!mounted) return;
-    Navigator.of(context).pop();
-    widget.onSaved();
-
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Profile updated')),
     );
+    Navigator.of(context).pop();
   }
 
   @override
