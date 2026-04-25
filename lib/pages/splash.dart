@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_lab/data/repositories/local_auth_repository.dart';
+import 'package:flutter_lab/data/repositories/api_auth_repository.dart';
 import 'package:flutter_lab/pages/home.dart';
 import 'package:flutter_lab/pages/login.dart';
 import 'package:flutter_lab/providers/connectivity_provider.dart';
@@ -21,7 +21,7 @@ class _SplashPageState extends State<SplashPage> {
 
   Future<void> _checkSession() async {
     try {
-      final repo = LocalAuthRepository();
+      final repo = ApiAuthRepository();
       final loggedIn = await repo.isLoggedIn();
       if (!mounted) return;
 

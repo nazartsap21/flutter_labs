@@ -1,19 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_lab/data/models/register_form_data.dart';
 import 'package:flutter_lab/data/services/validator.dart';
 import 'package:flutter_lab/widgets/input.dart';
 import 'package:flutter_lab/widgets/password_field.dart';
-
-class RegisterFormData {
-  const RegisterFormData({
-    required this.name,
-    required this.email,
-    required this.password,
-  });
-
-  final String name;
-  final String email;
-  final String password;
-}
 
 class RegisterForm extends StatefulWidget {
   const RegisterForm({
@@ -56,15 +45,11 @@ class _RegisterFormState extends State<RegisterForm> {
     final emailError = Validator.validateEmail(_emailController.text.trim());
     final passwordError = Validator.validatePassword(_passwordController.text);
     final confirmError = Validator.validateConfirmPassword(
-      _passwordController.text,
-      _confirmPasswordController.text,
-    );
+      _passwordController.text, _confirmPasswordController.text);
 
     setState(() {
-      _nameError = nameError;
-      _emailError = emailError;
-      _passwordError = passwordError;
-      _confirmPasswordError = confirmError;
+      _nameError = nameError; _emailError = emailError;
+      _passwordError = passwordError; _confirmPasswordError = confirmError;
     });
 
     return nameError == null &&
@@ -140,10 +125,8 @@ class _RegisterFormState extends State<RegisterForm> {
             onPressed: widget.isLoading ? null : _submit,
             child: widget.isLoading
                 ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
+                    height: 20, width: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2))
                 : const Text('Create Account'),
           ),
           const SizedBox(height: 16),

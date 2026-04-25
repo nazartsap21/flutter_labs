@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_lab/data/models/register_form_data.dart';
 import 'package:flutter_lab/data/models/user.dart';
-import 'package:flutter_lab/data/repositories/local_auth_repository.dart';
+import 'package:flutter_lab/data/repositories/api_auth_repository.dart';
 import 'package:flutter_lab/pages/home.dart';
 import 'package:flutter_lab/pages/login.dart';
 import 'package:flutter_lab/widgets/register_form.dart';
@@ -13,7 +14,7 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
-  final _authRepository = LocalAuthRepository();
+  final _authRepository = ApiAuthRepository();
   bool _isLoading = false;
 
   Future<void> _register(RegisterFormData data) async {
@@ -28,13 +29,16 @@ class _RegisterPageState extends State<RegisterPage> {
       await _authRepository.register(user);
 
       if (!mounted) return;
-      await Navigator.of(context).pushReplacement(
+      await Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
         MaterialPageRoute<void>(builder: (_) => const HomePage()),
+        (_) => false,
       );
     } on Exception catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+        ),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);

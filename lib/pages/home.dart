@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lab/data/models/meteostation.dart';
 import 'package:flutter_lab/data/models/user.dart';
-import 'package:flutter_lab/data/repositories/local_auth_repository.dart';
-import 'package:flutter_lab/data/repositories/local_meteostation_repository.dart';
+import 'package:flutter_lab/data/repositories/api_auth_repository.dart';
+import 'package:flutter_lab/data/repositories/api_meteostation_repository.dart';
 import 'package:flutter_lab/pages/profile.dart';
 import 'package:flutter_lab/providers/connectivity_provider.dart';
 import 'package:flutter_lab/providers/mqtt_provider.dart';
 import 'package:flutter_lab/widgets/confirm_dialog.dart';
-import 'package:flutter_lab/widgets/meteostation.dart';
-import 'package:flutter_lab/widgets/metric.dart';
+import 'package:flutter_lab/widgets/offline_banner.dart';
 import 'package:flutter_lab/widgets/station_dialog.dart';
+import 'package:flutter_lab/widgets/station_list.dart';
 import 'package:provider/provider.dart';
 
 class HomePage extends StatefulWidget {
@@ -20,186 +20,123 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final _authRepository = LocalAuthRepository();
-  final _stationRepository = LocalMeteostationRepository();
-
+  final _authRepo = ApiAuthRepository();
+  final _stationRepo = ApiMeteostationRepository();
+  Future<List<Meteostation>>? _stationsFuture;
   User? _user;
-  List<Meteostation> _stations = [];
-  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadData();
+    _init();
   }
 
-  Future<void> _loadData() async {
-    try {
-      final user = await _authRepository.getCurrentUser();
-      if (!mounted) return;
-      if (user == null) {
-        setState(() => _isLoading = false);
-        return;
+  Future<void> _init() async {
+    final user = await _authRepo.getCurrentUser();
+    if (!mounted) return;
+    setState(() {
+      _user = user;
+      if (user != null) {
+        _stationsFuture = _stationRepo.getStations(user.id);
       }
-      final stations = await _stationRepository.getStations(user.id);
-      if (!mounted) return;
-      setState(() {
-        _user = user;
-        _stations = stations;
-        _isLoading = false;
-      });
-    } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
-    }
+    });
   }
 
-  void _openStationDialog({Meteostation? existing}) {
+  void _refresh() {
+    final user = _user;
+    if (user == null) return;
+    final future = _stationRepo.getStations(user.id);
+    setState(() { _stationsFuture = future; });
+  }
+
+  void _openDialog({Meteostation? existing}) {
+    final user = _user;
+    if (user == null) return;
     showDialog<void>(
       context: context,
       builder: (_) => StationDialog(
-        userId: _user!.id,
+        userId: user.id,
         existing: existing,
-        onSaved: _loadData,
+        onSaved: _refresh,
       ),
     );
   }
 
-  Future<void> _deleteStation(Meteostation station) async {
-    final confirmed = await showConfirmDialog(
+  void _openAddDialog() => _openDialog();
+
+  Future<void> _delete(Meteostation s) async {
+    final ok = await showConfirmDialog(
       context,
       title: 'Delete Station',
-      content: 'Remove "${station.name}"?',
+      content: 'Remove "${s.name}"?',
       confirmLabel: 'Delete',
       isDestructive: true,
     );
-    if (!confirmed) return;
-    await _stationRepository.deleteStation(station.id, station.userId);
-    await _loadData();
+    if (!ok) return;
+    await _stationRepo.deleteStation(s.id, s.userId);
+    _refresh();
   }
 
   @override
   Widget build(BuildContext context) {
+    final online = context.watch<ConnectivityProvider>().isConnected;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Your Meteostations'),
         actions: [
           Consumer<MqttProvider>(
-            builder: (context, mqtt, _) => Tooltip(
-              message: mqtt.connected ? 'MQTT Connected' : 'MQTT Disconnected',
-              child: Padding(
+            builder: (_, mqtt, _) {
+              final active = mqtt.connected && online;
+              return Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: Icon(
-                  mqtt.connected ? Icons.sensors : Icons.sensors_off,
-                  color: mqtt.connected ? Colors.green : Colors.grey,
+                  active ? Icons.sensors : Icons.sensors_off,
+                  color: active ? Colors.green : Colors.grey,
                 ),
-              ),
-            ),
+              );
+            },
           ),
           IconButton(
             icon: const Icon(Icons.person_outline),
             tooltip: 'Profile',
             onPressed: () async {
               await Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => const ProfilePage()),
+                MaterialPageRoute<void>(
+                  builder: (_) => const ProfilePage(),
+                ),
               );
-              await _loadData();
+              _refresh();
             },
           ),
         ],
       ),
       body: Column(
         children: [
-          Consumer<ConnectivityProvider>(
-            builder: (context, connectivity, _) {
-              if (connectivity.isConnected) return const SizedBox.shrink();
-              return Container(
-                color: Colors.orange.shade100,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.wifi_off, color: Colors.orange, size: 18),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'No internet connection',
-                        style: TextStyle(color: Colors.orange),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
+          const OfflineBanner(),
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _stations.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.sensors_off_outlined,
-                              size: 56,
-                              color: Colors.grey,
-                            ),
-                            const SizedBox(height: 12),
-                            const Text(
-                              'No stations yet',
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                            const SizedBox(height: 12),
-                            ElevatedButton.icon(
-                              onPressed:
-                                  _user != null ? _openStationDialog : null,
-                              icon: const Icon(Icons.add),
-                              label: const Text('Add Station'),
-                            ),
-                          ],
-                        ),
-                      )
-                    : Consumer<MqttProvider>(
-                        builder: (context, mqtt, _) => ListView.builder(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 8,
-                            horizontal: 12,
-                          ),
-                          itemCount: _stations.length,
-                          itemBuilder: (context, index) {
-                            final station = _stations[index];
-                            return MeteostationCard(
-                              name: station.name,
-                              location: station.location,
-                              metrics: [
-                                MetricTile(
-                                  label: 'Temp',
-                                  value: mqtt.temperature(station.id),
-                                ),
-                                MetricTile(
-                                  label: 'Hum',
-                                  value: mqtt.humidity(station.id),
-                                ),
-                                MetricTile(
-                                  label: 'Wind',
-                                  value: mqtt.wind(station.id),
-                                ),
-                              ],
-                              onEdit: () =>
-                                  _openStationDialog(existing: station),
-                              onDelete: () => _deleteStation(station),
-                            );
-                          },
-                        ),
-                      ),
+            child: FutureBuilder<List<Meteostation>>(
+              future: _stationsFuture,
+              builder: (_, snap) {
+                if (snap.connectionState != ConnectionState.done) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snap.hasError) {
+                  return Center(child: Text('${snap.error}'));
+                }
+                return StationListView(
+                  stations: snap.data ?? [],
+                  onEdit: online ? (s) => _openDialog(existing: s) : null,
+                  onDelete: online ? _delete : null,
+                  onAdd: online ? _openAddDialog : null,
+                );
+              },
+            ),
           ),
         ],
       ),
-      floatingActionButton: _user != null && _stations.isNotEmpty
+      floatingActionButton: _user != null && online
           ? FloatingActionButton(
-              onPressed: _openStationDialog,
+              onPressed: _openAddDialog,
               tooltip: 'Add Station',
               child: const Icon(Icons.add),
             )

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lab/data/models/user.dart';
-import 'package:flutter_lab/data/repositories/local_auth_repository.dart';
-import 'package:flutter_lab/data/repositories/local_meteostation_repository.dart';
+import 'package:flutter_lab/data/repositories/api_auth_repository.dart';
+import 'package:flutter_lab/data/repositories/api_meteostation_repository.dart';
 import 'package:flutter_lab/pages/login.dart';
+import 'package:flutter_lab/providers/connectivity_provider.dart';
 import 'package:flutter_lab/widgets/confirm_dialog.dart';
 import 'package:flutter_lab/widgets/edit_profile_dialog.dart';
+import 'package:flutter_lab/widgets/offline_banner.dart';
 import 'package:flutter_lab/widgets/profile_info.dart';
+import 'package:provider/provider.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -15,8 +18,8 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  final _authRepository = LocalAuthRepository();
-  final _stationRepository = LocalMeteostationRepository();
+  final _authRepository = ApiAuthRepository();
+  final _stationRepository = ApiMeteostationRepository();
 
   User? _user;
   bool _isLoading = true;
@@ -30,10 +33,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _loadUser() async {
     final user = await _authRepository.getCurrentUser();
     if (!mounted) return;
-    setState(() {
-      _user = user;
-      _isLoading = false;
-    });
+    setState(() { _user = user; _isLoading = false; });
   }
 
   void _openEditDialog() {
@@ -61,7 +61,8 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _deleteAccount() async {
-    if (_user == null) return;
+    final user = _user;
+    if (user == null) return;
     final confirmed = await showConfirmDialog(
       context,
       title: 'Delete Account',
@@ -71,8 +72,8 @@ class _ProfilePageState extends State<ProfilePage> {
       isDestructive: true,
     );
     if (!confirmed) return;
-    await _stationRepository.deleteAllForUser(_user!.id);
-    await _authRepository.deleteAccount(_user!.email);
+    await _stationRepository.deleteAllForUser(user.id);
+    await _authRepository.deleteAccount(user.email);
     if (!mounted) return;
     await Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute<void>(builder: (_) => const LoginPage()),
@@ -82,11 +83,12 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    final online = context.watch<ConnectivityProvider>().isConnected;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Profile'),
         actions: [
-          if (_user != null)
+          if (_user != null && online)
             IconButton(
               icon: const Icon(Icons.edit_outlined),
               tooltip: 'Edit',
@@ -101,34 +103,41 @@ class _ProfilePageState extends State<ProfilePage> {
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    ProfileInfoCard(name: _user!.name, email: _user!.email),
+                    const OfflineBanner(),
+                    ProfileInfoCard(
+                      name: _user!.name,
+                      email: _user!.email,
+                    ),
                     const SizedBox(height: 8),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          OutlinedButton.icon(
-                            onPressed: _openEditDialog,
-                            icon: const Icon(Icons.edit_outlined),
-                            label: const Text('Edit Profile'),
-                          ),
-                          const SizedBox(height: 8),
+                          if (online)
+                            OutlinedButton.icon(
+                              onPressed: _openEditDialog,
+                              icon: const Icon(Icons.edit_outlined),
+                              label: const Text('Edit Profile'),
+                            ),
+                          if (online) const SizedBox(height: 8),
                           OutlinedButton.icon(
                             onPressed: _logout,
                             icon: const Icon(Icons.logout),
                             label: const Text('Logout'),
                           ),
-                          const SizedBox(height: 8),
-                          OutlinedButton.icon(
-                            onPressed: _deleteAccount,
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.red,
-                              side: const BorderSide(color: Colors.red),
+                          if (online) ...[
+                            const SizedBox(height: 8),
+                            OutlinedButton.icon(
+                              onPressed: _deleteAccount,
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.red,
+                                side: const BorderSide(color: Colors.red),
+                              ),
+                              icon: const Icon(Icons.delete_forever_outlined),
+                              label: const Text('Delete Account'),
                             ),
-                            icon: const Icon(Icons.delete_forever_outlined),
-                            label: const Text('Delete Account'),
-                          ),
+                          ],
                         ],
                       ),
                     ),

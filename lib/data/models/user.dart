@@ -10,7 +10,7 @@ class User {
         id: json['id'] as String,
         name: json['name'] as String,
         email: json['email'] as String,
-        password: json['password'] as String,
+        password: (json['password'] as String?) ?? '',
       );
 
   final String id;

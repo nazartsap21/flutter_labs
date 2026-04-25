@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_lab/data/services/api_service.dart';
 import 'package:flutter_lab/pages/splash.dart';
 import 'package:flutter_lab/providers/connectivity_provider.dart';
 import 'package:flutter_lab/providers/mqtt_provider.dart';
 import 'package:provider/provider.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await ApiService.init();
   runApp(const FlutterLab());
 }
 

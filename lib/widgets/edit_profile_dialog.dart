@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lab/data/models/user.dart';
-import 'package:flutter_lab/data/repositories/local_auth_repository.dart';
+import 'package:flutter_lab/data/repositories/api_auth_repository.dart';
 import 'package:flutter_lab/data/services/validator.dart';
 import 'package:flutter_lab/widgets/input.dart';
 import 'package:flutter_lab/widgets/password_field.dart';
@@ -20,7 +20,7 @@ class EditProfileDialog extends StatefulWidget {
 }
 
 class _EditProfileDialogState extends State<EditProfileDialog> {
-  final _authRepository = LocalAuthRepository();
+  final _authRepository = ApiAuthRepository();
   late final TextEditingController _nameController;
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
@@ -66,7 +66,7 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
 
     final updated = widget.user.copyWith(
       name: _nameController.text.trim(),
-      password: newPassword.isNotEmpty ? newPassword : widget.user.password,
+      password: newPassword,
     );
     await _authRepository.updateProfile(updated);
 
