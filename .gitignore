@@ -1,3 +1,6 @@
+# IDE / tool config
+.claude/
+
 # Miscellaneous
 *.class
 *.log
