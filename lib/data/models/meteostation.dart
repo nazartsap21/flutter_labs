@@ -10,7 +10,7 @@ class Meteostation {
         id: json['id'] as String,
         name: json['name'] as String,
         location: json['location'] as String,
-        userId: json['userId'] as String,
+        userId: json['userId'] as String? ?? '',
       );
 
   final String id;

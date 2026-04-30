@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lab/data/models/meteostation.dart';
-import 'package:flutter_lab/data/repositories/local_meteostation_repository.dart';
+import 'package:flutter_lab/data/repositories/api_meteostation_repository.dart';
 import 'package:flutter_lab/data/services/validator.dart';
 import 'package:flutter_lab/widgets/input.dart';
 
@@ -21,7 +21,7 @@ class StationDialog extends StatefulWidget {
 }
 
 class _StationDialogState extends State<StationDialog> {
-  final _stationRepository = LocalMeteostationRepository();
+  final _stationRepository = ApiMeteostationRepository();
   late final TextEditingController _nameController;
   late final TextEditingController _locationController;
   late final TextEditingController _idController;

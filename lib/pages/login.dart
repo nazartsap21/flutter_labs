@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_lab/data/repositories/local_auth_repository.dart';
+import 'package:flutter_lab/data/repositories/api_auth_repository.dart';
 import 'package:flutter_lab/pages/home.dart';
 import 'package:flutter_lab/pages/register.dart';
 import 'package:flutter_lab/providers/connectivity_provider.dart';
 import 'package:flutter_lab/widgets/login_form.dart';
+import 'package:flutter_lab/widgets/offline_banner.dart';
 import 'package:provider/provider.dart';
 
 class LoginPage extends StatefulWidget {
@@ -14,7 +15,7 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final _authRepository = LocalAuthRepository();
+  final _authRepository = ApiAuthRepository();
   bool _isLoading = false;
 
   Future<void> _login(String email, String password) async {
@@ -33,13 +34,16 @@ class _LoginPageState extends State<LoginPage> {
     try {
       await _authRepository.login(email, password);
       if (!mounted) return;
-      await Navigator.of(context).pushReplacement(
+      await Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
         MaterialPageRoute<void>(builder: (_) => const HomePage()),
+        (_) => false,
       );
     } on Exception catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+        ),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -52,36 +56,15 @@ class _LoginPageState extends State<LoginPage> {
       body: SafeArea(
         child: Column(
           children: [
-            Consumer<ConnectivityProvider>(
-              builder: (context, connectivity, _) {
-                if (connectivity.isConnected) return const SizedBox.shrink();
-                return Container(
-                  color: Colors.orange.shade100,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.wifi_off, color: Colors.orange, size: 18),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'No internet connection',
-                          style: TextStyle(color: Colors.orange),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
+            const OfflineBanner(),
             Expanded(
               child: LoginForm(
                 isLoading: _isLoading,
                 onSubmit: _login,
                 onRegisterTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(builder: (_) => const RegisterPage()),
+                  MaterialPageRoute<void>(
+                    builder: (_) => const RegisterPage(),
+                  ),
                 ),
               ),
             ),
