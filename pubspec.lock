@@ -171,6 +171,15 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  flutter_torch_plugin:
+    dependency: "direct main"
+    description:
+      path: "."
+      ref: HEAD
+      resolved-ref: c4aceb5b2cac08c7f6343b4679b6c09554d9de13
+      url: "https://github.com/nazartsap21/flutter_torch_plugin.git"
+    source: git
+    version: "0.0.1"
   flutter_web_plugins:
     dependency: transitive
     description: flutter

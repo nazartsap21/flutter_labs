@@ -1,15 +1,11 @@
-import 'package:flutter/foundation.dart';
-import 'package:mqtt_client/mqtt_browser_client.dart';
+import 'package:flutter_lab/data/services/mqtt_factory.dart'
+    if (dart.library.io) 'package:flutter_lab/data/services/mqtt_factory_io.dart'
+    if (dart.library.js_interop) 'package:flutter_lab/data/services/mqtt_factory_web.dart';
 import 'package:mqtt_client/mqtt_client.dart';
-import 'package:mqtt_client/mqtt_server_client.dart';
 
 typedef MqttMessageCallback = void Function(String topic, String payload);
 
 class MqttService {
-  static const String _broker = 'broker.hivemq.com';
-  static const int _port = 1883;
-  static const int _wsPort = 8000;
-
   static const List<String> _wildcardTopics = [
     'sensor/+/temperature',
     'sensor/+/humidity',
@@ -23,21 +19,14 @@ class MqttService {
   void Function()? onDisconnected;
 
   MqttService()
-      : _client = kIsWeb
-            ? MqttBrowserClient(
-                'ws://$_broker/mqtt',
-                'flutter_lab_${DateTime.now().millisecondsSinceEpoch}',
-              )
-            : MqttServerClient(
-                'broker.hivemq.com',
-                'flutter_lab_${DateTime.now().millisecondsSinceEpoch}',
-              );
+      : _client = createMqttClient(
+          'flutter_lab_${DateTime.now().millisecondsSinceEpoch}',
+        );
 
   bool get isConnected =>
       _client.connectionStatus?.state == MqttConnectionState.connected;
 
   Future<void> connect() async {
-    _client.port = kIsWeb ? _wsPort : _port;
     _client.logging(on: false);
     _client.keepAlivePeriod = 20;
     _client.autoReconnect = true;

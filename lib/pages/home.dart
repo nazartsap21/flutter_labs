@@ -10,10 +10,24 @@ import 'package:flutter_lab/widgets/confirm_dialog.dart';
 import 'package:flutter_lab/widgets/offline_banner.dart';
 import 'package:flutter_lab/widgets/station_dialog.dart';
 import 'package:flutter_lab/widgets/station_list.dart';
+import 'package:flutter_torch_plugin/flutter_torch_plugin.dart';
 import 'package:provider/provider.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
+
+  static Future<void> _toggleTorch(BuildContext context) async {
+    await FlutterTorchPlugin.toggle(context);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          FlutterTorchPlugin.isOn ? 'Torch ON' : 'Torch OFF',
+        ),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
 
   void _openDialog(
     BuildContext context,
@@ -38,7 +52,10 @@ class HomePage extends StatelessWidget {
             authState is AuthAuthenticated ? authState.user : null;
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Your Meteostations'),
+            title: GestureDetector(
+              onLongPress: () => _toggleTorch(context),
+              child: const Text('Your Meteostations'),
+            ),
             actions: [
               Consumer<MqttProvider>(
                 builder: (_, mqtt, _) {
