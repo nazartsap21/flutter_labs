@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_lab/cubits/auth_cubit.dart';
+import 'package:flutter_lab/cubits/station_cubit.dart';
 import 'package:flutter_lab/data/models/meteostation.dart';
-import 'package:flutter_lab/data/models/user.dart';
-import 'package:flutter_lab/data/repositories/api_auth_repository.dart';
-import 'package:flutter_lab/data/repositories/api_meteostation_repository.dart';
 import 'package:flutter_lab/pages/profile.dart';
 import 'package:flutter_lab/providers/connectivity_provider.dart';
 import 'package:flutter_lab/providers/mqtt_provider.dart';
@@ -10,61 +10,117 @@ import 'package:flutter_lab/widgets/confirm_dialog.dart';
 import 'package:flutter_lab/widgets/offline_banner.dart';
 import 'package:flutter_lab/widgets/station_dialog.dart';
 import 'package:flutter_lab/widgets/station_list.dart';
+import 'package:flutter_torch_plugin/flutter_torch_plugin.dart';
 import 'package:provider/provider.dart';
 
-class HomePage extends StatefulWidget {
+class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
-  @override
-  State<HomePage> createState() => _HomePageState();
-}
-
-class _HomePageState extends State<HomePage> {
-  final _authRepo = ApiAuthRepository();
-  final _stationRepo = ApiMeteostationRepository();
-  Future<List<Meteostation>>? _stationsFuture;
-  User? _user;
-
-  @override
-  void initState() {
-    super.initState();
-    _init();
-  }
-
-  Future<void> _init() async {
-    final user = await _authRepo.getCurrentUser();
-    if (!mounted) return;
-    setState(() {
-      _user = user;
-      if (user != null) {
-        _stationsFuture = _stationRepo.getStations(user.id);
-      }
-    });
-  }
-
-  void _refresh() {
-    final user = _user;
-    if (user == null) return;
-    final future = _stationRepo.getStations(user.id);
-    setState(() { _stationsFuture = future; });
-  }
-
-  void _openDialog({Meteostation? existing}) {
-    final user = _user;
-    if (user == null) return;
-    showDialog<void>(
-      context: context,
-      builder: (_) => StationDialog(
-        userId: user.id,
-        existing: existing,
-        onSaved: _refresh,
+  static Future<void> _toggleTorch(BuildContext context) async {
+    await FlutterTorchPlugin.toggle(context);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          FlutterTorchPlugin.isOn ? 'Torch ON' : 'Torch OFF',
+        ),
+        duration: const Duration(seconds: 1),
       ),
     );
   }
 
-  void _openAddDialog() => _openDialog();
+  void _openDialog(
+    BuildContext context,
+    String userId, {
+    Meteostation? existing,
+  }) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => BlocProvider.value(
+        value: context.read<StationCubit>(),
+        child: StationDialog(userId: userId, existing: existing),
+      ),
+    );
+  }
 
-  Future<void> _delete(Meteostation s) async {
+  @override
+  Widget build(BuildContext context) {
+    final online = context.watch<ConnectivityProvider>().isConnected;
+    return BlocBuilder<AuthCubit, AuthState>(
+      builder: (context, authState) {
+        final user =
+            authState is AuthAuthenticated ? authState.user : null;
+        return Scaffold(
+          appBar: AppBar(
+            title: GestureDetector(
+              onLongPress: () => _toggleTorch(context),
+              child: const Text('Your Meteostations'),
+            ),
+            actions: [
+              Consumer<MqttProvider>(
+                builder: (_, mqtt, _) {
+                  final active = mqtt.connected && online;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Icon(
+                      active ? Icons.sensors : Icons.sensors_off,
+                      color: active ? Colors.green : Colors.grey,
+                    ),
+                  );
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.person_outline),
+                tooltip: 'Profile',
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const ProfilePage(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          body: Column(
+            children: [
+              const OfflineBanner(),
+              Expanded(child: _StationBody(online: online, userId: user?.id)),
+            ],
+          ),
+          floatingActionButton: (user != null && online)
+              ? FloatingActionButton(
+                  onPressed: () => _openDialog(context, user.id),
+                  tooltip: 'Add Station',
+                  child: const Icon(Icons.add),
+                )
+              : null,
+        );
+      },
+    );
+  }
+}
+
+class _StationBody extends StatelessWidget {
+  const _StationBody({required this.online, required this.userId});
+
+  final bool online;
+  final String? userId;
+
+  void _openDialog(BuildContext context, {Meteostation? existing}) {
+    final uid = userId;
+    if (uid == null) return;
+    showDialog<void>(
+      context: context,
+      builder: (_) => BlocProvider.value(
+        value: context.read<StationCubit>(),
+        child: StationDialog(userId: uid, existing: existing),
+      ),
+    );
+  }
+
+  Future<void> _confirmDelete(
+    BuildContext context,
+    Meteostation s,
+  ) async {
     final ok = await showConfirmDialog(
       context,
       title: 'Delete Station',
@@ -72,75 +128,36 @@ class _HomePageState extends State<HomePage> {
       confirmLabel: 'Delete',
       isDestructive: true,
     );
-    if (!ok) return;
-    await _stationRepo.deleteStation(s.id, s.userId);
-    _refresh();
+    if (!context.mounted || !ok) return;
+    await context.read<StationCubit>().deleteStation(s.id, s.userId);
   }
 
   @override
   Widget build(BuildContext context) {
-    final online = context.watch<ConnectivityProvider>().isConnected;
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Your Meteostations'),
-        actions: [
-          Consumer<MqttProvider>(
-            builder: (_, mqtt, _) {
-              final active = mqtt.connected && online;
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Icon(
-                  active ? Icons.sensors : Icons.sensors_off,
-                  color: active ? Colors.green : Colors.grey,
-                ),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.person_outline),
-            tooltip: 'Profile',
-            onPressed: () async {
-              await Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const ProfilePage(),
-                ),
-              );
-              _refresh();
-            },
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          const OfflineBanner(),
-          Expanded(
-            child: FutureBuilder<List<Meteostation>>(
-              future: _stationsFuture,
-              builder: (_, snap) {
-                if (snap.connectionState != ConnectionState.done) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snap.hasError) {
-                  return Center(child: Text('${snap.error}'));
-                }
-                return StationListView(
-                  stations: snap.data ?? [],
-                  onEdit: online ? (s) => _openDialog(existing: s) : null,
-                  onDelete: online ? _delete : null,
-                  onAdd: online ? _openAddDialog : null,
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-      floatingActionButton: _user != null && online
-          ? FloatingActionButton(
-              onPressed: _openAddDialog,
-              tooltip: 'Add Station',
-              child: const Icon(Icons.add),
-            )
-          : null,
+    return BlocBuilder<StationCubit, StationState>(
+      builder: (context, state) {
+        if (state is StationLoading || state is StationInitial) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (state is StationError) {
+          return Center(child: Text(state.message));
+        }
+        final stations = state is StationLoaded
+            ? state.stations
+            : <Meteostation>[];
+        return StationListView(
+          stations: stations,
+          onEdit: (online && userId != null)
+              ? (s) => _openDialog(context, existing: s)
+              : null,
+          onDelete: (online && userId != null)
+              ? (s) => _confirmDelete(context, s)
+              : null,
+          onAdd: (online && userId != null)
+              ? () => _openDialog(context)
+              : null,
+        );
+      },
     );
   }
 }
