@@ -1,27 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_lab/cubits/station_cubit.dart';
 import 'package:flutter_lab/data/models/meteostation.dart';
-import 'package:flutter_lab/data/repositories/api_meteostation_repository.dart';
 import 'package:flutter_lab/data/services/validator.dart';
 import 'package:flutter_lab/widgets/input.dart';
 
 class StationDialog extends StatefulWidget {
   const StationDialog({
     required this.userId,
-    required this.onSaved,
     super.key,
     this.existing,
   });
 
   final String userId;
   final Meteostation? existing;
-  final VoidCallback onSaved;
 
   @override
   State<StationDialog> createState() => _StationDialogState();
 }
 
 class _StationDialogState extends State<StationDialog> {
-  final _stationRepository = ApiMeteostationRepository();
   late final TextEditingController _nameController;
   late final TextEditingController _locationController;
   late final TextEditingController _idController;
@@ -33,10 +31,12 @@ class _StationDialogState extends State<StationDialog> {
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.existing?.name ?? '');
+    _nameController =
+        TextEditingController(text: widget.existing?.name ?? '');
     _locationController =
         TextEditingController(text: widget.existing?.location ?? '');
-    _idController = TextEditingController(text: widget.existing?.id ?? '');
+    _idController =
+        TextEditingController(text: widget.existing?.id ?? '');
   }
 
   @override
@@ -48,43 +48,41 @@ class _StationDialogState extends State<StationDialog> {
   }
 
   Future<void> _save() async {
-    final nameError =
+    final nameErr =
         Validator.validateStationName(_nameController.text.trim());
-    final locationError =
+    final locErr =
         Validator.validateLocation(_locationController.text.trim());
     final idValue = _idController.text.trim();
-    final idError = idValue.isEmpty ? 'Device ID is required' : null;
+    final idErr = idValue.isEmpty ? 'Device ID is required' : null;
 
-    if (nameError != null || locationError != null || idError != null) {
+    if (nameErr != null || locErr != null || idErr != null) {
       setState(() {
-        _nameError = nameError;
-        _locationError = locationError;
-        _idError = idError;
+        _nameError = nameErr;
+        _locationError = locErr;
+        _idError = idErr;
       });
       return;
     }
 
     if (widget.existing == null) {
-      await _stationRepository.addStation(
-        Meteostation(
-          id: idValue,
-          name: _nameController.text.trim(),
-          location: _locationController.text.trim(),
-          userId: widget.userId,
-        ),
-      );
+      await context.read<StationCubit>().addStation(
+            Meteostation(
+              id: idValue,
+              name: _nameController.text.trim(),
+              location: _locationController.text.trim(),
+              userId: widget.userId,
+            ),
+          );
     } else {
-      await _stationRepository.updateStation(
-        widget.existing!.copyWith(
-          name: _nameController.text.trim(),
-          location: _locationController.text.trim(),
-        ),
-      );
+      await context.read<StationCubit>().updateStation(
+            widget.existing!.copyWith(
+              name: _nameController.text.trim(),
+              location: _locationController.text.trim(),
+            ),
+          );
     }
-
     if (!mounted) return;
     Navigator.of(context).pop();
-    widget.onSaved();
   }
 
   @override
